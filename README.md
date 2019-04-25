@@ -1,0 +1,2 @@
+# Automatic_Watering
+基于51单片机的自动浇花项目，附带Qt制作的上位机软件
