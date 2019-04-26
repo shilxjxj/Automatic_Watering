@@ -1,0 +1,36 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Project:</h2>
+G:\git_warehouse\Automatic_Watering\user\auto_water.uvproj
+Project File Date:  04/26/2019
+
+<h2>Output:</h2>
+Build target 'auto_water'
+assembling STARTUP.A51...
+compiling main.c...
+main.c(2): warning C318: can't open file 'HX711.h'
+MAIN.C(95): warning C206: 'HX711_Read': missing function-prototype
+compiling LCD12864.c...
+linking...
+*** WARNING L1: UNRESOLVED EXTERNAL SYMBOL
+    SYMBOL:  HX711_READ
+    MODULE:  ..\bin\main.obj (MAIN)
+*** WARNING L2: REFERENCE MADE TO UNRESOLVED EXTERNAL
+    SYMBOL:  HX711_READ
+    MODULE:  ..\bin\main.obj (MAIN)
+    ADDRESS: 039AH
+*** WARNING L2: REFERENCE MADE TO UNRESOLVED EXTERNAL
+    SYMBOL:  HX711_READ
+    MODULE:  ..\bin\main.obj (MAIN)
+    ADDRESS: 067BH
+Program Size: data=25.2 xdata=0 code=1674
+creating hex file from "..\bin\auto_water"...
+"..\bin\auto_water" - 0 Error(s), 5 Warning(s).
+Build target 'auto_water'
+compiling main.c...
+linking...
+Program Size: data=25.2 xdata=0 code=1096
+creating hex file from "..\bin\auto_water"...
+"..\bin\auto_water" - 0 Error(s), 0 Warning(s).
