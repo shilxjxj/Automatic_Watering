@@ -1,5 +1,6 @@
 "..\bin\STARTUP.obj",
 "..\bin\main.obj",
-"..\bin\LCD12864.obj" 
+"..\bin\LCD12864.obj",
+"..\bin\ESP8266.obj" 
 TO "..\bin\auto_water" 
 PRINT(".\auto_water.m51") RAMSIZE(256) 

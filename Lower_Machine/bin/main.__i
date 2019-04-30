@@ -1,1 +1,1 @@
-"main.c" BROWSE INCDIR(..\inc) DEBUG OBJECTEXTEND OBJECT(..\bin\main.obj)
+"main.c" LARGE BROWSE INCDIR(..\inc) DEBUG OBJECTEXTEND OBJECT(..\bin\main.obj)
