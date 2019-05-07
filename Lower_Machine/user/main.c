@@ -1,6 +1,7 @@
 #include "main.h"
 #include "LCD12864.h"
 #include "ESP8266.h"
+#include "motor.h"
 
 unsigned long HX711_Buffer = 0;
 unsigned long Weight_Maopi = 0;
@@ -11,13 +12,13 @@ bit Flag_ERROR = 0;
 
 sbit LED1=P1^0;//LED1
 sbit LED2=P1^1;//LED2
-sbit LED3=P1^2;//LED3 
-sbit WATER_PUMP = P2^0;
+sbit WATER_PUMP1 = P1^6;
+sbit WATER_PUMP2 = P1^7;
 
 extern uchar        idata RX1_Buffer[32];        //接收缓冲
 extern uchar        TX1_Cnt;        //发送计数
 extern uchar        RX1_Cnt;        //接收计数
-extern bit                B_TX1_Busy;        //发送忙标志
+extern bit          B_TX1_Busy;        //发送忙标志
 
 /**wifi模块命令**/
 unsigned char RST[]="AT+RST\r\n";
@@ -36,11 +37,11 @@ unsigned char FSSJ[]="AT+CIPSEND=5\r\n";//AT+CIPSEND= 发送数据
 
 
 uchar code dis1[] = {"粤嵌众创"};
-uchar code dis2[] = {"智能电子称系统"};
-uchar code dis3[] = {"物品重量:"};
+uchar code dis2[] = {"智能浇花装置"};
+uchar code dis3[] = {" "};
 uchar code dis4[] = {"0123456789"};
-uchar code dis5[] = {"超重!"};
-uchar code dis6[] = {"未放置物品"};
+uchar code dis5[] = {" "};
+uchar code dis6[] = {" "};
 uchar code src[]={"                "}; //用于清屏
 
 //****************************************************
@@ -49,43 +50,60 @@ uchar code src[]={"                "}; //用于清屏
 void main()
 {
 	int i = 0;
-//		lcd_init();
-//	
-//		lcd_pos(0,0);
-//		lcd_show(dis1);
-//			
-//		lcd_pos(1,0);
-//		lcd_show(dis2);
+	lcd_init();
+	
+	lcd_pos(0,0);
+	lcd_show(dis1);
+			
+	lcd_pos(1,0);
+	lcd_show(dis2);
+	
 	
 //		delay(300);		 //延时,等待传感器稳定
 
 	Uart_Init();
-	
+	stop(3);
 	Delay_ms(2000);
+	
+
 
   /******************设置WiFi模块**********************************************/
-	SendrStr(RST);
-	Delay_ms(5000);
-	
-	
-	SendrStr(LYMS); //AT+CWMODE=2 设置成路由模式
-	Delay_ms(1000);
+//	SendrStr(RST);
+//	Delay_ms(5000);
+//	
+//	
+//	SendrStr(LYMS); //AT+CWMODE=2 设置成路由模式
+//	Delay_ms(1000);
+//
+//	SendrStr(SZLY); //AT+CWSAP="ESP8266","0123456789",11,0 设置路由
+//	Delay_ms(3000);
+////	LED1 = ~LED1;
+//
+//	SendrStr(SZDLJ); //AT+CIPMUX=1 设置成多连接
+//	Delay_ms(2000);
+//
+//	SendrStr(KQFU); //AT+CIPSERVER=1,5000 开启TCP服务端口
+//	Delay_ms(2000);
+//	LED1 = 0;
 
-	SendrStr(SZLY); //AT+CWSAP="ESP8266","0123456789",11,0 设置路由
-	Delay_ms(3000);
-//	LED1 = ~LED1;
-
-	SendrStr(SZDLJ); //AT+CIPMUX=1 设置成多连接
-	Delay_ms(2000);
-
-	SendrStr(KQFU); //AT+CIPSERVER=1,5000 开启TCP服务端口
-	Delay_ms(2000);
-	LED1 = 0;
 	while(1)
 	{
-		if(WATER_PUMP)
+		if(WATER_PUMP1)
 		{
-			
+			start(1);
+		}
+		else
+		{
+			stop(1);
+		}
+
+		if(WATER_PUMP2)
+		{
+			start(2);
+		}
+		else
+		{
+			stop(2);
 		}
 
 		Scan_Key();
@@ -201,17 +219,6 @@ void UART1_int (void) interrupt 4
 						if(RX1_Buffer[3]==0x47)//判断关
 						{
 							LED2=1;
-						}
-					}
-					if(RX1_Buffer[7]==0x33)//判断LED3
-					{
-						if(RX1_Buffer[3]==0x4B)//判断开
-						{
-							LED3=0;
-						}
-						if(RX1_Buffer[3]==0x47)//判断关
-						{
-							LED3=1;
 						}
 					}
 				}

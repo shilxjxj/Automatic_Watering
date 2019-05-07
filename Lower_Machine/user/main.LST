@@ -1,4 +1,4 @@
-C51 COMPILER V9.00   MAIN                                                                  04/30/2019 16:36:39 PAGE 1   
+C51 COMPILER V9.00   MAIN                                                                  05/07/2019 13:25:12 PAGE 1   
 
 
 C51 COMPILER V9.00, COMPILATION OF MODULE MAIN
@@ -11,267 +11,274 @@ line level    source
    1          #include "main.h"
    2          #include "LCD12864.h"
    3          #include "ESP8266.h"
-   4          
-   5          unsigned long HX711_Buffer = 0;
-   6          unsigned long Weight_Maopi = 0;
-   7          long Weight_Shiwu = 0;
-   8          
-   9          unsigned char flag = 0;
-  10          bit Flag_ERROR = 0;
-  11          
-  12          sbit LED1=P1^0;//LED1
-  13          sbit LED2=P1^1;//LED2
-  14          sbit LED3=P1^2;//LED3 
-  15          sbit WATER_PUMP = P2^0;
-  16          
-  17          extern uchar        idata RX1_Buffer[32];        //接收缓冲
-  18          extern uchar        TX1_Cnt;        //发送计数
-  19          extern uchar        RX1_Cnt;        //接收计数
-  20          extern bit                B_TX1_Busy;        //发送忙标志
-  21          
-  22          /**wifi模块命令**/
-  23          unsigned char RST[]="AT+RST\r\n";
-  24          unsigned char LYMS[]="AT+CWMODE=3\r\n";
-  25          unsigned char SZLY[]="AT+CWSAP=\"GEC-ESP\",\"0123456789\",11,3\r\n";
-  26          
-  27          unsigned char SZDLJ[]="AT+CIPMUX=1\r\n";
-  28          unsigned char KQFU[]="AT+CIPSERVER=1,5000\r\n";
-  29          unsigned char FSSJ[]="AT+CIPSEND=5\r\n";//AT+CIPSEND= 发送数据     
-  30          
-  31          //校准参数
-  32          //因为不同的传感器特性曲线不是很一致，因此，每一个传感器需要矫正这里这个参数才能使测量值很准确。
-  33          //当发现测试出来的重量偏大时，增加该数值。
-  34          //如果测试出来的重量偏小时，减小改数值。
-  35          //该值可以为小数
-  36          
+   4          #include "motor.h"
+   5          
+   6          unsigned long HX711_Buffer = 0;
+   7          unsigned long Weight_Maopi = 0;
+   8          long Weight_Shiwu = 0;
+   9          
+  10          unsigned char flag = 0;
+  11          bit Flag_ERROR = 0;
+  12          
+  13          sbit LED1=P1^0;//LED1
+  14          sbit LED2=P1^1;//LED2
+  15          sbit WATER_PUMP1 = P1^6;
+  16          sbit WATER_PUMP2 = P1^7;
+  17          
+  18          extern uchar        idata RX1_Buffer[32];        //接收缓冲
+  19          extern uchar        TX1_Cnt;        //发送计数
+  20          extern uchar        RX1_Cnt;        //接收计数
+  21          extern bit          B_TX1_Busy;        //发送忙标志
+  22          
+  23          /**wifi模块命令**/
+  24          unsigned char RST[]="AT+RST\r\n";
+  25          unsigned char LYMS[]="AT+CWMODE=3\r\n";
+  26          unsigned char SZLY[]="AT+CWSAP=\"GEC-ESP\",\"0123456789\",11,3\r\n";
+  27          
+  28          unsigned char SZDLJ[]="AT+CIPMUX=1\r\n";
+  29          unsigned char KQFU[]="AT+CIPSERVER=1,5000\r\n";
+  30          unsigned char FSSJ[]="AT+CIPSEND=5\r\n";//AT+CIPSEND= 发送数据     
+  31          
+  32          //校准参数
+  33          //因为不同的传感器特性曲线不是很一致，因此，每一个传感器需要矫正这里这个参数才能使测量值很准确。
+  34          //当发现测试出来的重量偏大时，增加该数值。
+  35          //如果测试出来的重量偏小时，减小改数值。
+  36          //该值可以为小数
   37          
-  38          uchar code dis1[] = {"粤嵌众创"};
-  39          uchar code dis2[] = {"智能电子称系统"};
-  40          uchar code dis3[] = {"物品重量:"};
-  41          uchar code dis4[] = {"0123456789"};
-  42          uchar code dis5[] = {"超重!"};
-  43          uchar code dis6[] = {"未放置物品"};
-  44          uchar code src[]={"                "}; //用于清屏
-  45          
-  46          //****************************************************
-  47          //主函数
-  48          //****************************************************
-  49          void main()
-  50          {
-  51   1              int i = 0;
-  52   1      //              lcd_init();
-  53   1      //      
-  54   1      //              lcd_pos(0,0);
-C51 COMPILER V9.00   MAIN                                                                  04/30/2019 16:36:39 PAGE 2   
+  38          
+  39          uchar code dis1[] = {"粤嵌众创"};
+  40          uchar code dis2[] = {"智能浇花装置"};
+  41          uchar code dis3[] = {" "};
+  42          uchar code dis4[] = {"0123456789"};
+  43          uchar code dis5[] = {" "};
+  44          uchar code dis6[] = {" "};
+  45          uchar code src[]={"                "}; //用于清屏
+  46          
+  47          //****************************************************
+  48          //主函数
+  49          //****************************************************
+  50          void main()
+  51          {
+  52   1              int i = 0;
+  53   1              lcd_init();
+  54   1              
+C51 COMPILER V9.00   MAIN                                                                  05/07/2019 13:25:12 PAGE 2   
 
-  55   1      //              lcd_show(dis1);
-  56   1      //                      
-  57   1      //              lcd_pos(1,0);
-  58   1      //              lcd_show(dis2);
-  59   1              
-  60   1      //              delay(300);              //延时,等待传感器稳定
-  61   1      
-  62   1              Uart_Init();
-  63   1              
-  64   1              Delay_ms(2000);
-  65   1      
-  66   1        /******************设置WiFi模块**********************************************/
-  67   1              SendrStr(RST);
-  68   1              Delay_ms(5000);
-  69   1              
-  70   1              
-  71   1              SendrStr(LYMS); //AT+CWMODE=2 设置成路由模式
-  72   1              Delay_ms(1000);
-  73   1      
-  74   1              SendrStr(SZLY); //AT+CWSAP="ESP8266","0123456789",11,0 设置路由
-  75   1              Delay_ms(3000);
-  76   1      //      LED1 = ~LED1;
-  77   1      
-  78   1              SendrStr(SZDLJ); //AT+CIPMUX=1 设置成多连接
-  79   1              Delay_ms(2000);
-  80   1      
-  81   1              SendrStr(KQFU); //AT+CIPSERVER=1,5000 开启TCP服务端口
-  82   1              Delay_ms(2000);
-  83   1              LED1 = 0;
-  84   1              while(1)
-  85   1              {
-  86   2                      if(WATER_PUMP)
-  87   2                      {
-  88   3                              
-  89   3                      }
-  90   2      
-  91   2                      Scan_Key();
-  92   2                      
-  93   2                      //显示当前重量
-  94   2      //              if( Flag_ERROR == 1)
-  95   2      //              {
-  96   2      //                      lcd_pos(3,0);
-  97   2      //                      lcd_show(dis5);
-  98   2      //              }               
-  99   2      //              else
- 100   2      //              {
- 101   2      //
- 102   2      //                      lcd_pos(2,0);
- 103   2      //                      lcd_show(dis3);
- 104   2      //                      lcd_wdat(dis4[Weight_Shiwu/1000]);
- 105   2      //                      lcd_wdat(dis4[Weight_Shiwu%1000/100]);
- 106   2      //                      lcd_wdat(dis4[Weight_Shiwu%100/10]);
- 107   2      //                      lcd_wdat(dis4[Weight_Shiwu%10]);
- 108   2      //                      lcd_show("g");  
- 109   2      //
- 110   2      //                      lcd_pos(3,0);
- 111   2      //                      lcd_show(src);
- 112   2      //              }
- 113   2                      
- 114   2              }
- 115   1      }
- 116          
-C51 COMPILER V9.00   MAIN                                                                  04/30/2019 16:36:39 PAGE 3   
+  55   1              lcd_pos(0,0);
+  56   1              lcd_show(dis1);
+  57   1                              
+  58   1              lcd_pos(1,0);
+  59   1              lcd_show(dis2);
+  60   1              
+  61   1              
+  62   1      //              delay(300);              //延时,等待传感器稳定
+  63   1      
+  64   1              Uart_Init();
+  65   1              stop(3);
+  66   1              Delay_ms(2000);
+  67   1              
+  68   1      
+  69   1      
+  70   1        /******************设置WiFi模块**********************************************/
+  71   1      //      SendrStr(RST);
+  72   1      //      Delay_ms(5000);
+  73   1      //      
+  74   1      //      
+  75   1      //      SendrStr(LYMS); //AT+CWMODE=2 设置成路由模式
+  76   1      //      Delay_ms(1000);
+  77   1      //
+  78   1      //      SendrStr(SZLY); //AT+CWSAP="ESP8266","0123456789",11,0 设置路由
+  79   1      //      Delay_ms(3000);
+  80   1      ////    LED1 = ~LED1;
+  81   1      //
+  82   1      //      SendrStr(SZDLJ); //AT+CIPMUX=1 设置成多连接
+  83   1      //      Delay_ms(2000);
+  84   1      //
+  85   1      //      SendrStr(KQFU); //AT+CIPSERVER=1,5000 开启TCP服务端口
+  86   1      //      Delay_ms(2000);
+  87   1      //      LED1 = 0;
+  88   1      
+  89   1              while(1)
+  90   1              {
+  91   2                      if(WATER_PUMP1)
+  92   2                      {
+  93   3                              start(1);
+  94   3                      }
+  95   2                      else
+  96   2                      {
+  97   3                              stop(1);
+  98   3                      }
+  99   2      
+ 100   2                      if(WATER_PUMP2)
+ 101   2                      {
+ 102   3                              start(2);
+ 103   3                      }
+ 104   2                      else
+ 105   2                      {
+ 106   3                              stop(2);
+ 107   3                      }
+ 108   2      
+ 109   2                      Scan_Key();
+ 110   2                      
+ 111   2                      //显示当前重量
+ 112   2      //              if( Flag_ERROR == 1)
+ 113   2      //              {
+ 114   2      //                      lcd_pos(3,0);
+ 115   2      //                      lcd_show(dis5);
+ 116   2      //              }               
+C51 COMPILER V9.00   MAIN                                                                  05/07/2019 13:25:12 PAGE 3   
 
- 117          //扫描按键
- 118          void Scan_Key()
- 119          {
- 120   1              if(KEY1 == 0)
- 121   1              {
- 122   2                      Delay_ms(5);
- 123   2                      if(KEY1 == 0)
- 124   2                      {
- 125   3                              while(KEY1 == 0)
- 126   3                              {
- 127   4                                              SendrStr(FSSJ);
- 128   4                                              Delay_ms(200);
- 129   4                                              SendrStr("hello\r\n");
- 130   4                                              Delay_ms(200);
- 131   4                              }
- 132   3                              //P1  = 0x00; //置P1口为低电平 
- 133   3                              //Get_Maopi();                  //去皮
- 134   3                      }       
- 135   2              }
- 136   1      }
- 137          
- 138          //****************************************************
- 139          //MS延时函数(12M晶振下测试)
- 140          //****************************************************
- 141          void Delay_ms(unsigned int n)
- 142          {
- 143   1              unsigned int  i,j;
- 144   1              for(i=0;i<n;i++)
- 145   1                      for(j=0;j<123;j++);
- 146   1      }
- 147          
- 148          /********************************************************************
- 149          * 名称 : Uart_Int()
- 150          * 功能 : 串口中断子函数
- 151          * 输入 : 无
- 152          * 输出 : 无
- 153          ***********************************************************************/
- 154          void UART1_int (void) interrupt 4
- 155          {
- 156   1      //      char i,a,b,c;
- 157   1              if(RI)
- 158   1              {
- 159   2      
- 160   2                      LED2 = ~LED2;           
- 161   2      
- 162   2                      RI = 0;
- 163   2                      RX1_Buffer[RX1_Cnt] = SBUF;             //保存一个字节
- 164   2      
- 165   2                      if(RX1_Buffer[0]==0x4F)
- 166   2                      {
- 167   3                              // LED2 = 0;
- 168   3                      }
- 169   2      
- 170   2                      if(RX1_Buffer[0]==0x45)
- 171   2                      {
- 172   3                              RX1_Cnt++;
- 173   3                      }
- 174   2                      else
- 175   2                      {
- 176   3                              RX1_Cnt=0;
- 177   3                      }
- 178   2                      if(RX1_Cnt>=10)
-C51 COMPILER V9.00   MAIN                                                                  04/30/2019 16:36:39 PAGE 4   
+ 117   2      //              else
+ 118   2      //              {
+ 119   2      //
+ 120   2      //                      lcd_pos(2,0);
+ 121   2      //                      lcd_show(dis3);
+ 122   2      //                      lcd_wdat(dis4[Weight_Shiwu/1000]);
+ 123   2      //                      lcd_wdat(dis4[Weight_Shiwu%1000/100]);
+ 124   2      //                      lcd_wdat(dis4[Weight_Shiwu%100/10]);
+ 125   2      //                      lcd_wdat(dis4[Weight_Shiwu%10]);
+ 126   2      //                      lcd_show("g");  
+ 127   2      //
+ 128   2      //                      lcd_pos(3,0);
+ 129   2      //                      lcd_show(src);
+ 130   2      //              }
+ 131   2                      
+ 132   2              }
+ 133   1      }
+ 134          
+ 135          //扫描按键
+ 136          void Scan_Key()
+ 137          {
+ 138   1              if(KEY1 == 0)
+ 139   1              {
+ 140   2                      Delay_ms(5);
+ 141   2                      if(KEY1 == 0)
+ 142   2                      {
+ 143   3                              while(KEY1 == 0)
+ 144   3                              {
+ 145   4                                              SendrStr(FSSJ);
+ 146   4                                              Delay_ms(200);
+ 147   4                                              SendrStr("hello\r\n");
+ 148   4                                              Delay_ms(200);
+ 149   4                              }
+ 150   3                              //P1  = 0x00; //置P1口为低电平 
+ 151   3                              //Get_Maopi();                  //去皮
+ 152   3                      }       
+ 153   2              }
+ 154   1      }
+ 155          
+ 156          //****************************************************
+ 157          //MS延时函数(12M晶振下测试)
+ 158          //****************************************************
+ 159          void Delay_ms(unsigned int n)
+ 160          {
+ 161   1              unsigned int  i,j;
+ 162   1              for(i=0;i<n;i++)
+ 163   1                      for(j=0;j<123;j++);
+ 164   1      }
+ 165          
+ 166          /********************************************************************
+ 167          * 名称 : Uart_Int()
+ 168          * 功能 : 串口中断子函数
+ 169          * 输入 : 无
+ 170          * 输出 : 无
+ 171          ***********************************************************************/
+ 172          void UART1_int (void) interrupt 4
+ 173          {
+ 174   1      //      char i,a,b,c;
+ 175   1              if(RI)
+ 176   1              {
+ 177   2      
+ 178   2                      LED2 = ~LED2;           
+C51 COMPILER V9.00   MAIN                                                                  05/07/2019 13:25:12 PAGE 4   
 
- 179   2                      {
- 180   3                              if(RX1_Buffer[0]==0x45&&RX1_Buffer[1]==0x53&&RX1_Buffer[2]==0x50)
- 181   3                              {
- 182   4                                      if(RX1_Buffer[4]==0x4C&&RX1_Buffer[5]==0x45&&RX1_Buffer[6]==0x44)//判断LED
- 183   4                                      {
- 184   5                                              if(RX1_Buffer[7]==0x31)//判断LED1
- 185   5                                              {
- 186   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
- 187   6                                                      {
- 188   7                                                              LED1=0;
- 189   7                                                      }
- 190   6                                                      if(RX1_Buffer[3]==0x47)//判断关
- 191   6                                                      {
- 192   7                                                              LED1=1;
- 193   7                                                      }
- 194   6                                              }
- 195   5                                              if(RX1_Buffer[7]==0x32)//判断LED2
- 196   5                                              {
- 197   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
- 198   6                                                      {
- 199   7                                                              LED2=0;
- 200   7                                                      }
- 201   6                                                      if(RX1_Buffer[3]==0x47)//判断关
- 202   6                                                      {
- 203   7                                                              LED2=1;
- 204   7                                                      }
- 205   6                                              }
- 206   5                                              if(RX1_Buffer[7]==0x33)//判断LED3
- 207   5                                              {
- 208   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
+ 179   2      
+ 180   2                      RI = 0;
+ 181   2                      RX1_Buffer[RX1_Cnt] = SBUF;             //保存一个字节
+ 182   2      
+ 183   2                      if(RX1_Buffer[0]==0x4F)
+ 184   2                      {
+ 185   3                              // LED2 = 0;
+ 186   3                      }
+ 187   2      
+ 188   2                      if(RX1_Buffer[0]==0x45)
+ 189   2                      {
+ 190   3                              RX1_Cnt++;
+ 191   3                      }
+ 192   2                      else
+ 193   2                      {
+ 194   3                              RX1_Cnt=0;
+ 195   3                      }
+ 196   2                      if(RX1_Cnt>=10)
+ 197   2                      {
+ 198   3                              if(RX1_Buffer[0]==0x45&&RX1_Buffer[1]==0x53&&RX1_Buffer[2]==0x50)
+ 199   3                              {
+ 200   4                                      if(RX1_Buffer[4]==0x4C&&RX1_Buffer[5]==0x45&&RX1_Buffer[6]==0x44)//判断LED
+ 201   4                                      {
+ 202   5                                              if(RX1_Buffer[7]==0x31)//判断LED1
+ 203   5                                              {
+ 204   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
+ 205   6                                                      {
+ 206   7                                                              LED1=0;
+ 207   7                                                      }
+ 208   6                                                      if(RX1_Buffer[3]==0x47)//判断关
  209   6                                                      {
- 210   7                                                              LED3=0;
+ 210   7                                                              LED1=1;
  211   7                                                      }
- 212   6                                                      if(RX1_Buffer[3]==0x47)//判断关
- 213   6                                                      {
- 214   7                                                              LED3=1;
- 215   7                                                      }
- 216   6                                              }
- 217   5                                      }
- 218   4                                      if(RX1_Buffer[4]==0x4A&&RX1_Buffer[5]==0x44&&RX1_Buffer[6]==0x51)//判断继电器
- 219   4                                      {
- 220   5                                              if(RX1_Buffer[7]==0x31)//判断LED1
- 221   5                                              {
- 222   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
- 223   6                                                      {
- 224   7                                                              //DK1=1;
- 225   7                                                      }
- 226   6                                                      if(RX1_Buffer[3]==0x47)//判断关
- 227   6                                                      {
- 228   7                                                              //DK1=0;
- 229   7                                                      }
- 230   6                                              }
- 231   5                                      }
- 232   4                                      if(RX1_Buffer[3]==0x46&&RX1_Buffer[4]==0x4D&&RX1_Buffer[5]==0x51&&RX1_Buffer[6]==0x43&&RX1_Buffer[7]==
+ 212   6                                              }
+ 213   5                                              if(RX1_Buffer[7]==0x32)//判断LED2
+ 214   5                                              {
+ 215   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
+ 216   6                                                      {
+ 217   7                                                              LED2=0;
+ 218   7                                                      }
+ 219   6                                                      if(RX1_Buffer[3]==0x47)//判断关
+ 220   6                                                      {
+ 221   7                                                              LED2=1;
+ 222   7                                                      }
+ 223   6                                              }
+ 224   5                                      }
+ 225   4                                      if(RX1_Buffer[4]==0x4A&&RX1_Buffer[5]==0x44&&RX1_Buffer[6]==0x51)//判断继电器
+ 226   4                                      {
+ 227   5                                              if(RX1_Buffer[7]==0x31)//判断LED1
+ 228   5                                              {
+ 229   6                                                      if(RX1_Buffer[3]==0x4B)//判断开
+ 230   6                                                      {
+ 231   7                                                              //DK1=1;
+ 232   7                                                      }
+ 233   6                                                      if(RX1_Buffer[3]==0x47)//判断关
+ 234   6                                                      {
+ 235   7                                                              //DK1=0;
+ 236   7                                                      }
+ 237   6                                              }
+ 238   5                                      }
+ 239   4                                      if(RX1_Buffer[3]==0x46&&RX1_Buffer[4]==0x4D&&RX1_Buffer[5]==0x51&&RX1_Buffer[6]==0x43&&RX1_Buffer[7]==
              -0x53)//判断蜂鸣器
- 233   4                                      {
- 234   5                                              //BEEP=1;Delay2(100);BEEP=0;Delay2(100);BEEP=1;Delay2(100);BEEP=0;Delay2(100);
- 235   5                                      }
- 236   4                                      RX1_Cnt=0;
- 237   4                              }
- 238   3                              else
- 239   3                              {
-C51 COMPILER V9.00   MAIN                                                                  04/30/2019 16:36:39 PAGE 5   
+C51 COMPILER V9.00   MAIN                                                                  05/07/2019 13:25:12 PAGE 5   
 
- 240   4                                      RX1_Cnt=0;
- 241   4                              }
- 242   3                              RX1_Cnt=0;
- 243   3                      }
- 244   2              }
- 245   1              if(TI)
- 246   1              {
- 247   2                      TI = 0;
- 248   2                      B_TX1_Busy = 0;         //清除发送忙标志
- 249   2              }
- 250   1      }
+ 240   4                                      {
+ 241   5                                              //BEEP=1;Delay2(100);BEEP=0;Delay2(100);BEEP=1;Delay2(100);BEEP=0;Delay2(100);
+ 242   5                                      }
+ 243   4                                      RX1_Cnt=0;
+ 244   4                              }
+ 245   3                              else
+ 246   3                              {
+ 247   4                                      RX1_Cnt=0;
+ 248   4                              }
+ 249   3                              RX1_Cnt=0;
+ 250   3                      }
+ 251   2              }
+ 252   1              if(TI)
+ 253   1              {
+ 254   2                      TI = 0;
+ 255   2                      B_TX1_Busy = 0;         //清除发送忙标志
+ 256   2              }
+ 257   1      }
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    373    ----
-   CONSTANT SIZE    =     87    ----
+   CODE SIZE        =    343    ----
+   CONSTANT SIZE    =     64    ----
    XDATA SIZE       =    126       2
    PDATA SIZE       =   ----    ----
    DATA SIZE        =   ----    ----
